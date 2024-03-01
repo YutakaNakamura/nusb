@@ -11,7 +11,7 @@ use std::{
 use log::{debug, error, info};
 use windows_sys::Win32::{
     Devices::Usb::{
-        WinUsb_ControlTransfer, WinUsb_Free, WinUsb_Initialize, WinUsb_SetCurrentAlternateSetting,
+        WinUsb_ControlTransfer, WinUsb_Free, WinUsb_Initialize, WinUsb_GetAssociatedInterface, WinUsb_SetCurrentAlternateSetting,
         WinUsb_SetPipePolicy, PIPE_TRANSFER_TIMEOUT, WINUSB_INTERFACE_HANDLE, WINUSB_SETUP_PACKET,
     },
     Foundation::{GetLastError, FALSE, TRUE},
@@ -115,12 +115,29 @@ impl WindowsDevice {
         super::events::register(&handle)?;
 
         let winusb_handle = unsafe {
-            let mut h = 0;
-            if WinUsb_Initialize(raw_handle(&handle), &mut h) == FALSE {
-                error!("WinUsb_Initialize failed: {:?}", io::Error::last_os_error());
-                return Err(io::Error::last_os_error());
+
+            if(interface == 0) {
+                let mut h = 0;
+                if WinUsb_Initialize(raw_handle(&handle), &mut h) == FALSE {
+                    error!("WinUsb_Initialize failed: {:?}", io::Error::last_os_error());
+                    return Err(io::Error::last_os_error());
+                }
+                h
+            } else {
+                let mut h = 0;
+                if WinUsb_Initialize(raw_handle(&handle), &mut h) == FALSE {
+                    error!("WinUsb_Initialize failed: {:?}", io::Error::last_os_error());
+                    return Err(io::Error::last_os_error());
+                }
+    
+                let mut h1 = 0;
+                if WinUsb_GetAssociatedInterface(h, 0, &mut h1) == FALSE {
+                    error!("WinUsb_GetAssociatedInterface failed: {:?}", io::Error::last_os_error());
+                    return Err(io::Error::last_os_error());
+                }
+                h1
             }
-            h
+
         };
 
         Ok(Arc::new(WindowsInterface {
